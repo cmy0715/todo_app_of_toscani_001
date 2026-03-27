@@ -1,0 +1,43 @@
+backend/config/config.js|||
+/**
+ * 配置管理模块
+ * 读取不同环境的配置，支持：development、test、production
+ * 支持process.env覆盖默认配置
+ */
+
+const DEFAULT_CONFIG = {
+  development: {
+    port: process.env.PORT || 3000,
+    mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/todoapp_dev',
+    jwtSecret: process.env.JWT_SECRET || 'dev_secret',
+  },
+  test: {
+    port: process.env.PORT || 3001,
+    mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/todoapp_test',
+    jwtSecret: process.env.JWT_SECRET || 'test_secret',
+  },
+  production: {
+    port: process.env.PORT || 8080,
+    mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/todoapp',
+    jwtSecret: process.env.JWT_SECRET || 'prod_secret',
+  },
+};
+
+/**
+ * 获取当前环境的配置
+ * @returns {object} 配置对象
+ */
+function getConfig() {
+  // 关键逻辑：优先读取process.env.NODE_ENV，默认为development
+  const env = process.env.NODE_ENV || 'development';
+  // 若环境不存在，抛出自定义错误
+  if (!DEFAULT_CONFIG[env]) {
+    const error = new Error(`Unknown environment: ${env}`);
+    error.status = 500;
+    throw error;
+  }
+  return DEFAULT_CONFIG[env];
+}
+
+// 导出配置对象
+module.exports = getConfig();

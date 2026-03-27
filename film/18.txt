@@ -1,0 +1,30 @@
+frontend/src/utils/authGuard.js|||
+import React from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAppContext } from '../contexts/AppContext';
+
+/**
+ * 路由守卫组件 - 校验用户身份状态，控制页面访问
+ * @param {object} props - 组件属性
+ * @param {JSX.Element} props.children - 被保护的子组件
+ * @returns {JSX.Element} 验证后渲染对应组件或重定向
+ */
+export function AuthGuard({ children }) {
+  const {
+    state: { user },
+  } = useAppContext();
+
+  try {
+    // 如果已认证，允许访问受保护内容
+    if (user.isAuthenticated) {
+      return children;
+    }
+    // 未认证，重定向到登录页（默认假设登录路由为 /login）
+    return <Navigate to="/login" replace />;
+  } catch (error) {
+    // 错误处理，交由全局处理方案或页面提示
+    // eslint-disable-next-line no-console
+    console.error('权限验证异常:', error);
+    return <Navigate to="/login" replace state={{ error: error.message }} />;
+  }
+}

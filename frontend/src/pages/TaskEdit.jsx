@@ -1,0 +1,202 @@
+
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+
+/**
+ * 请求任务详情（编辑模式）
+ * @param {string} taskId 任务ID
+ * @returns {Promise<{success: boolean, data: any, message: string}>}
+ */
+async function fetchTask(taskId) {
+  try {
+    const res = await fetch(`/api/tasks/${taskId}`);
+    return await res.json();
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('加载任务失败:', error);
+    return { success: false, data: null, message: error.message };
+  }
+}
+
+/**
+ * 创建任务
+ * @param {object} payload 创建参数
+ * @returns {Promise<{success: boolean, data: any, message: string}>}
+ */
+async function createTask(payload) {
+  try {
+    const res = await fetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('创建任务失败:', error);
+    return { success: false, data: null, message: error.message };
+  }
+}
+
+/**
+ * 更新任务
+ * @param {string} taskId 任务ID
+ * @param {object} payload 更新参数
+ * @returns {Promise<{success: boolean, data: any, message: string}>}
+ */
+async function updateTask(taskId, payload) {
+  try {
+    const res = await fetch(`/api/tasks/${taskId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('更新任务失败:', error);
+    return { success: false, data: null, message: error.message };
+  }
+}
+
+/**
+ * 任务编辑页面组件
+ * 支持新建与编辑任务
+ * @returns {JSX.Element}
+ */
+function TaskEdit() {
+  const { id } = useParams(); // taskId，存在为编辑，否则为创建
+  const navigate = useNavigate();
+  const isEdit = Boolean(id);
+
+  // 任务表单状态
+  const [form, setForm] = useState({
+    title: '',
+    description: ''
+  });
+
+  // 交互相关
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  // 编辑模式下加载任务数据
+  useEffect(() => {
+    if (isEdit) {
+      setLoading(true);
+      fetchTask(id)
+        .then(res => {
+          if (res.success && res.data) {
+            setForm({
+              title: res.data.title || '',
+              description: res.data.description || ''
+            });
+          } else {
+            setError(res.message || '无法加载任务信息');
+          }
+        })
+        .catch(err => {
+          setError(err.message);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  }, [id, isEdit]);
+
+  /**
+   * 表单变更处理
+   * @param {React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement>} e
+   */
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  }
+
+  /**
+   * 表单提交处理
+   * @param {React.FormEvent<HTMLFormElement>} e
+   */
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    setLoading(true);
+
+    try {
+      let res;
+      if (isEdit) {
+        res = await updateTask(id, form);
+      } else {
+        res = await createTask(form);
+      }
+      if (res.success) {
+        setMessage(isEdit ? '任务已更新' : '任务已创建');
+        // 跳转回任务列表页面（假设为 /todos），后续可根据实际情况调整
+        setTimeout(() => {
+          navigate('/todos');
+        }, 1200);
+      } else {
+        setError(res.message || '保存失败');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div>
+      <h2>{isEdit ? '编辑任务' : '新建任务'}</h2>
+      {loading && <p>加载中...</p>}
+      {error && (
+        <p style={{ color: 'red' }}>
+          {error}
+        </p>
+      )}
+      {message && (
+        <p style={{ color: 'green' }}>
+          {message}
+        </p>
+      )}
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label>
+            标题：
+            <input
+              type="text"
+              name="title"
+              value={form.title}
+              onChange={handleChange}
+              required
+              disabled={loading}
+            />
+          </label>
+        </div>
+        <div>
+          <label>
+            描述：
+            <textarea
+              name="description"
+              value={form.description}
+              onChange={handleChange}
+              rows={4}
+              disabled={loading}
+            />
+          </label>
+        </div>
+        <div>
+          <button type="submit" disabled={loading}>
+            {isEdit ? '保存修改' : '创建任务'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+export default TaskEdit;

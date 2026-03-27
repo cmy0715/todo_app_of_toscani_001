@@ -1,0 +1,124 @@
+frontend/src/contexts/AppContext.jsx|||
+import React, { createContext, useReducer, useContext } from 'react';
+
+/**
+ * 用户状态初始值
+ */
+const initialUserState = {
+  isAuthenticated: false,
+  user: null,
+};
+
+/**
+ * 任务状态初始值
+ */
+const initialTaskState = {
+  tasks: [],
+  loading: false,
+  error: null,
+};
+
+/**
+ * 组合初始状态
+ */
+const initialState = {
+  user: initialUserState,
+  task: initialTaskState,
+};
+
+/**
+ * 用户状态 reducer
+ * @param {object} state 当前用户状态
+ * @param {object} action 行为对象
+ * @returns {object} 新的用户状态
+ */
+function userReducer(state, action) {
+  switch (action.type) {
+    case 'LOGIN_SUCCESS':
+      return { ...state, isAuthenticated: true, user: action.payload };
+    case 'LOGIN_LOGOUT':
+      return { ...state, isAuthenticated: false, user: null };
+    default:
+      return state;
+  }
+}
+
+/**
+ * 任务状态 reducer
+ * @param {object} state 当前任务状态
+ * @param {object} action 行为
+ * @returns {object} 新的任务状态
+ */
+function taskReducer(state, action) {
+  switch (action.type) {
+    case 'SET_TASKS':
+      return { ...state, tasks: action.payload, loading: false, error: null };
+    case 'ADD_TASK':
+      return { ...state, tasks: [...state.tasks, action.payload] };
+    case 'REMOVE_TASK':
+      return { ...state, tasks: state.tasks.filter(t => t.id !== action.payload) };
+    case 'SET_TASK_LOADING':
+      return { ...state, loading: action.payload };
+    case 'SET_TASK_ERROR':
+      return { ...state, error: action.payload, loading: false };
+    default:
+      return state;
+  }
+}
+
+/**
+ * 总体 reducer, 委托各分支
+ */
+function appReducer(state, action) {
+  return {
+    user: userReducer(state.user, action),
+    task: taskReducer(state.task, action),
+  };
+}
+
+/**
+ * 创建应用上下文
+ */
+const AppContext = createContext();
+
+/**
+ * AppContext 提供者组件
+ * @param {object} props 组件子节点
+ * @returns {JSX.Element} Provider包裹的子树
+ */
+export function AppProvider({ children }) {
+  const [state, dispatch] = useReducer(appReducer, initialState);
+
+  /**
+   * 分发 action 的封装, 后续可对接全局错误处理
+   * @param {object} action 行为对象
+   */
+  function safeDispatch(action) {
+    try {
+      dispatch(action);
+    } catch (err) {
+      // 此处简单捕获，复杂异常交全局中间件
+      // eslint-disable-next-line no-console
+      console.error('状态分发异常:', err);
+      dispatch({ type: 'SET_TASK_ERROR', payload: err.message });
+    }
+  }
+
+  return (
+    <AppContext.Provider value={{ state, dispatch: safeDispatch }}>
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+/**
+ * 自定义 hook，获取上下文
+ * @returns {object} 上下文值
+ */
+export function useAppContext() {
+  const context = useContext(AppContext);
+  if (context === undefined) {
+    throw new Error('useAppContext 必须在 AppProvider 内部使用');
+  }
+  return context;
+}

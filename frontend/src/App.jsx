@@ -1,0 +1,30 @@
+
+import React from 'react';
+
+/**
+ * App 根组件
+ * @returns {JSX.Element} 应用的主要结构
+ */
+function App() {
+  try {
+    // 目前展示初始页面，后续可引入具体功能页面和全局错误边界
+    return (
+      <div>
+        <h1>Todo App</h1>
+        {/* 关键内容区，后续内容在此集成 */}
+      </div>
+    );
+  } catch (error) {
+    // 初步错误捕获，UI级别，后续可迁移至ErrorBoundary统一处理
+    // eslint-disable-next-line no-console
+    console.error('App 发生错误: ', error);
+    return (
+      <div>
+        <h1>应用发生错误</h1>
+        <pre>{error.message}</pre>
+      </div>
+    );
+  }
+}
+
+export default App;

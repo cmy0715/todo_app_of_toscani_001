@@ -1,0 +1,45 @@
+
+/**
+ * 请求日志中间件
+ * 记录请求方法、路径、状态码和持续时间
+ * @param {Request} req - Express请求对象
+ * @param {Response} res - Express响应对象
+ * @param {Function} next - Express下一中间件
+ */
+function requestLogger(req, res, next) {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    // 关键逻辑：输出日志到控制台
+    console.log(
+      `[${new Date().toISOString()}] ${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`
+    );
+  });
+  next();
+}
+
+/**
+ * 全局错误处理中间件
+ * 捕获所有路由/中间件错误，统一返回响应格式
+ * @param {Error} err - 捕获到的错误对象
+ * @param {Request} req - Express请求对象
+ * @param {Response} res - Express响应对象
+ * @param {Function} next - Express下一中间件
+ */
+function globalErrorHandler(err, req, res, next) {
+  // 关键逻辑：统一错误响应格式并打印错误日志
+  console.error(
+    `[${new Date().toISOString()}] ERROR ${req.method} ${req.originalUrl}:`,
+    err.stack || err
+  );
+  res.status(err.status || 500).json({
+    success: false,
+    data: null,
+    message: err.message || 'Internal Server Error',
+  });
+}
+
+module.exports = {
+  requestLogger,
+  globalErrorHandler,
+};
