@@ -1,0 +1,159 @@
+
+const request = require('supertest');
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const app = require('../src/app');
+const { User, Todo } = require('../src/models/schemas');
+
+const DB_URL = process.env.TEST_MONGO_URL || 'mongodb://127.0.0.1:27017/todo_app_test';
+
+let server;
+let token;
+let userId;
+let todoId;
+
+// 关键逻辑：测试用户信息
+const testUser = {
+  username: 'testuser',
+  password: '12345678',
+};
+
+/**
+ * 集成测试前置准备与清理
+ */
+beforeAll(async () => {
+  await mongoose.connect(DB_URL, { useNewUrlParser: true, useUnifiedTopology: true });
+  // 启动Express应用
+  server = app.listen(4001);
+});
+
+afterAll(async () => {
+  await mongoose.connection.dropDatabase();
+  await mongoose.connection.close();
+  server.close();
+});
+
+beforeEach(async () => {
+  // 清空用户和任务数据
+  await User.deleteMany({});
+  await Todo.deleteMany({});
+  // 创建一个测试用户（密码加密）
+  const hash = await bcrypt.hash(testUser.password, 10);
+  const user = await User.create({ username: testUser.username, password: hash });
+  userId = user._id;
+  // 签发测试token
+  token = jwt.sign({ userId: user._id, username: user.username }, process.env.JWT_SECRET || 'default_jwt_secret', { expiresIn: '1h' });
+});
+
+/**
+ * 用户登录测试
+ */
+describe('POST /auth/login 登录接口', () => {
+  it('should login with correct credentials', async () => {
+    const res = await request(app)
+      .post('/auth/login')
+      .send(testUser)
+      .expect(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.token).not.toBeNull();
+    expect(res.body.data.user.username).toBe(testUser.username);
+  });
+
+  it('fails with wrong password', async () => {
+    const res = await request(app)
+      .post('/auth/login')
+      .send({ username: testUser.username, password: 'wrongpassword' })
+      .expect(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toBe('用户名或密码错误');
+  });
+
+  it('fails with missing params', async () => {
+    const res = await request(app)
+      .post('/auth/login')
+      .send({ username: 'testuser' })
+      .expect(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toBe('用户名和密码必填');
+  });
+});
+
+/**
+ * 任务CRUD集成测试
+ */
+describe('任务API集成', () => {
+  it('创建新任务', async () => {
+    const res = await request(app)
+      .post('/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ title: '测试任务', description: '集成测试desc' })
+      .expect(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.title).toBe('测试任务');
+    todoId = res.body.data._id;
+  });
+
+  it('获取用户所有任务', async () => {
+    // 先创建任务
+    await Todo.create({ title: 'seeAll', completed: false, owner: userId });
+    const res = await request(app)
+      .get('/tasks')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('获取单个任务详情', async () => {
+    const todo = await Todo.create({ title: '详情', owner: userId });
+    const res = await request(app)
+      .get(`/tasks/${todo._id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.title).toBe('详情');
+  });
+
+  it('更新任务', async () => {
+    const todo = await Todo.create({ title: 'toUpdate', owner: userId });
+    const res = await request(app)
+      .put(`/tasks/${todo._id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ completed: true })
+      .expect(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.completed).toBe(true);
+  });
+
+  it('删除任务', async () => {
+    const todo = await Todo.create({ title: 'toDelete', owner: userId });
+    const res = await request(app)
+      .delete(`/tasks/${todo._id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(res.body.success).toBe(true);
+    // 确认真的删了
+    const deleted = await Todo.findById(todo._id);
+    expect(deleted).toBeNull();
+  });
+
+  it('未认证不能操作任务', async () => {
+    const res = await request(app)
+      .post('/tasks')
+      .send({ title: '非法' })
+      .expect(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toBe('未认证的请求');
+  });
+
+  it('获取不存在的任务', async () => {
+    const fakeId = new mongoose.Types.ObjectId();
+    const res = await request(app)
+      .get(`/tasks/${fakeId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
+    expect(res.body.success).toBe(false);
+  });
+});

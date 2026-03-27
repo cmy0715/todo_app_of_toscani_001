@@ -1,0 +1,128 @@
+frontend/src/utils/validation.js|||
+/**
+ * 输入校验工具函数
+ * 支持登录、注册和任务表单校验
+ */
+
+/**
+ * @typedef {Object} ValidationResult
+ * @property {boolean} success 校验是否通过
+ * @property {object|null} data 返回校验后的数据
+ * @property {string} message 错误信息（校验通过时为空字符串）
+ */
+
+/**
+ * 校验邮箱格式
+ * @param {string} email
+ * @returns {boolean}
+ */
+function isValidEmail(email) {
+  // 简单邮箱正则校验
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+/**
+ * 校验密码复杂度
+ * 要求长度至少6，含至少数字和字母
+ * @param {string} password
+ * @returns {boolean}
+ */
+function isValidPassword(password) {
+  return (
+    typeof password === 'string' &&
+    password.length >= 6 &&
+    /[a-zA-Z]/.test(password) &&
+    /\d/.test(password)
+  );
+}
+
+/**
+ * 登录表单校验
+ * @param {object} values { email, password }
+ * @returns {ValidationResult}
+ */
+export function validateLogin(values) {
+  try {
+    const { email, password } = values;
+    if (!email || !password) {
+      return { success: false, data: null, message: '邮箱和密码不能为空' };
+    }
+    if (!isValidEmail(email)) {
+      return { success: false, data: null, message: '邮箱格式不正确' };
+    }
+    if (!isValidPassword(password)) {
+      return { success: false, data: null, message: '密码至少6位，且需包含字母和数字' };
+    }
+    return { success: true, data: { email, password }, message: '' };
+  } catch (error) {
+    // 全局错误处理建议统一捕获
+    return { success: false, data: null, message: error.message || '未知错误' };
+  }
+}
+
+/**
+ * 注册表单校验
+ * @param {object} values { email, password, confirmPassword, username }
+ * @returns {ValidationResult}
+ */
+export function validateRegister(values) {
+  try {
+    const { email, password, confirmPassword, username } = values;
+    if (!username) {
+      return { success: false, data: null, message: '用户名不能为空' };
+    }
+    if (!email || !password || !confirmPassword) {
+      return { success: false, data: null, message: '所有字段均为必填' };
+    }
+    if (!isValidEmail(email)) {
+      return { success: false, data: null, message: '邮箱格式不正确' };
+    }
+    if (!isValidPassword(password)) {
+      return { success: false, data: null, message: '密码至少6位，且需包含字母和数字' };
+    }
+    if (password !== confirmPassword) {
+      return { success: false, data: null, message: '两次密码输入不一致' };
+    }
+    return { success: true, data: { username, email, password }, message: '' };
+  } catch (error) {
+    return { success: false, data: null, message: error.message || '未知错误' };
+  }
+}
+
+/**
+ * 任务表单校验
+ * @param {object} values { title, description }
+ * @returns {ValidationResult}
+ */
+export function validateTask(values) {
+  try {
+    const { title, description } = values;
+
+    // 校验标题，不能为空且不能太长
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+      return { success: false, data: null, message: '任务标题不能为空' };
+    }
+    if (title.length > 50) {
+      return { success: false, data: null, message: '任务标题最多50字' };
+    }
+
+    // 描述可选
+    if (description && description.length > 200) {
+      return { success: false, data: null, message: '任务描述最多200字' };
+    }
+
+    return {
+      success: true,
+      data: { title: title.trim(), description: description ? description.trim() : '' },
+      message: '',
+    };
+  } catch (error) {
+    return { success: false, data: null, message: error.message || '未知错误' };
+  }
+}
+
+export default {
+  validateLogin,
+  validateRegister,
+  validateTask,
+};

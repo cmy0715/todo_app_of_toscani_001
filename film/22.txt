@@ -1,0 +1,68 @@
+frontend/tests/component.test.jsx|||
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import App from '../src/App';
+
+/**
+ * 捕获测试用例中的异常，防止测试失败
+ * @param {Function} fn 测试函数
+ */
+const safeTest = (fn) => async () => {
+  try {
+    await fn();
+  } catch (error) {
+    // 输出错误信息，方便定位
+    // eslint-disable-next-line no-console
+    console.error('单元测试出错:', error);
+    throw error;
+  }
+};
+
+describe('App 组件', () => {
+  /**
+   * 测试页面初始渲染
+   */
+  it(
+    '应正确渲染应用标题',
+    safeTest(() => {
+      render(<App />);
+      // 检查标题文本是否渲染
+      expect(screen.getByText(/Todo App/i)).toBeInTheDocument();
+    })
+  );
+
+  /**
+   * 测试错误处理渲染 (模拟渲染期异常)
+   */
+  it(
+    '在渲染异常时应显示错误信息',
+    safeTest(() => {
+      // 模拟 App 抛出错误
+      // 创建一个异常组件
+      const ErrorComponent = () => {
+        throw new Error('测试渲染错误');
+      };
+
+      // 替换 App 的内容为抛错组件
+      const OriginalApp = App;
+      const FakedApp = () => {
+        try {
+          return <ErrorComponent />;
+        } catch (error) {
+          // 复用 App 错误处理逻辑
+          return OriginalApp.prototype ? OriginalApp.prototype.render.call({}) : (
+            <div>
+              <h1>应用发生错误</h1>
+              <pre>{error.message}</pre>
+            </div>
+          );
+        }
+      };
+
+      render(<FakedApp />);
+      expect(screen.getByText(/应用发生错误/i)).toBeInTheDocument();
+      expect(screen.getByText(/测试渲染错误/)).toBeInTheDocument();
+    })
+  );
+});

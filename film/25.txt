@@ -1,0 +1,34 @@
+docker-compose.yml|||
+version: '3.9'
+
+services:
+  # 关键逻辑：MongoDB服务，持久化数据
+  mongo:
+    image: mongo:6.0
+    container_name: todo_mongo
+    restart: always
+    # 挂载本地数据卷实现持久化，避免数据丢失
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"
+
+  # 后端Node.js服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: todo_backend
+    restart: always
+    ports:
+      - "3000:3000"
+    # 关键逻辑：通过环境变量对接mongo服务
+    environment:
+      - PORT=3000
+      - MONGO_URI=mongodb://mongo:27017/todoapp
+    depends_on:
+      - mongo
+
+volumes:
+  # 关键逻辑：MongoDB数据持久化卷声明
+  mongo-data:

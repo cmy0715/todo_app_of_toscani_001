@@ -1,0 +1,37 @@
+
+# 基于官方node镜像，为构建前端代码提供环境
+FROM node:18-alpine AS build
+
+# 设置工作目录
+WORKDIR /app
+
+# 拷贝项目依赖配置
+COPY package.json package-lock.json ./
+
+# 安装依赖，仅用于构建
+RUN npm ci
+
+# 拷贝项目源代码
+COPY . .
+
+# 构建前端应用，生成build产物
+RUN npm run build
+
+# 使用nginx提供静态资源服务
+FROM nginx:stable-alpine
+
+# 拷贝自定义nginx配置（如有自定义请替换本行）
+# COPY nginx.conf /etc/nginx/nginx.conf
+
+# 拷贝build产物到nginx静态目录
+COPY --from=build /app/build /usr/share/nginx/html
+
+# 暴露端口（默认为80）
+EXPOSE 80
+
+# 健康检查，确保nginx正常运行
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost:80/ || exit 1
+
+# 运行nginx服务器
+CMD ["nginx", "-g", "daemon off;"]

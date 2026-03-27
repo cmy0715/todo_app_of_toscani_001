@@ -1,0 +1,21 @@
+
+# 使用官方Node.js LTS基础镜像
+FROM node:18-alpine
+
+# 设定工作目录
+WORKDIR /app
+
+# 拷贝package.json依赖清单及package-lock.json
+COPY package*.json ./
+
+# 关键逻辑：仅安装生产依赖，加快构建速度
+RUN npm install --production
+
+# 拷贝全部代码到容器工作目录
+COPY . .
+
+# 暴露应用端口（与server.js默认端口保持一致）
+EXPOSE 3000
+
+# 设置默认启动命令
+CMD ["node", "src/server.js"]
